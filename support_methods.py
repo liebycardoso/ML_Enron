@@ -4,77 +4,65 @@ Created on Sat May 20 21:48:23 2017
 
 @author: lieby
 """
-from tester import dump_classifier_and_data, test_classifier
-from sklearn import cross_validation
-from time import time
 import pandas as pd
-import pylab as pl
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import precision_score, recall_score
-from sklearn.ensemble import AdaBoostClassifier
-from sklearn.neighbors import KNeighborsClassifier, NearestCentroid
-from sklearn.tree import DecisionTreeClassifier, ExtraTreeClassifier
-from sklearn.naive_bayes import GaussianNB
-#from sklearn.svm import LinearSVC, SVC
-from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.feature_selection import chi2, f_regression, SelectKBest
+from sklearn.feature_selection import chi2, f_classif , SelectKBest
 from sklearn import model_selection
-# Preprocessing
+from sklearn.cross_validation import cross_val_score
 from sklearn.preprocessing import  MaxAbsScaler, StandardScaler, MinMaxScaler
 
-from sklearn.cross_validation import cross_val_score, StratifiedShuffleSplit
-
-def get_f1_score(features, labels):
-    classifier = [GaussianNB(), 
-                  DecisionTreeClassifier(), 
-                  RandomForestClassifier(), 
-                  KNeighborsClassifier(n_neighbors=4),
-                  AdaBoostClassifier(),
-                  LogisticRegression(),
-                  NearestCentroid(),
-                  GradientBoostingClassifier(),
-                  ExtraTreeClassifier()                          
-                 ]
-    classifier_name = ['Naive Bayes', 
-                       'Decision Tree', 
-                       'Random Forest',
-                       'KNeighbors',
-                       'AdaBoost',
-                       'Logistic Regression',
-                       'NearestCentroid',
-                       'GradientBoostingClassifier',
-                       'ExtraTreeClassifier']
+def get_score(features, labels, models, name_score):
+    """
+    Estimate the score value by cross-validation for each model.
+    Show the result as a DataFrame compose for: Model name, scores, Scores mean 
+    
+    Args:
+        features: Array-like. Data to fit.
+        labels:  Array-like. Target variable.
+        models: Dictionary. Model name and classifier object.
+        name_score: string. Scoring parameter. Example: F1, Accuracy, 
+                                                        Recall and precision.    
+    """
     
     accuracy_model = []
-    for clf, name in zip(classifier, classifier_name):    
-        score = cross_val_score(clf, features, labels, scoring='f1')
+    for name, clf in models:    
+        score = cross_val_score(clf, features, labels, scoring=name_score)
         accuracy_model.append([name,score[0],score[1],score[2],score.mean()])
       
-    scores = pd.DataFrame(accuracy_model,columns=('Model', 
-                                                 'Score1', 
-                                                 'Score2',
-                                                 'Score3',
-                                                 'Mean')).sort_values(by='Mean',ascending = False)
-    print scores
+    scores = pd.DataFrame(accuracy_model,
+                          columns=('Model', 
+                                   'Score1', 
+                                   'Score2',
+                                   'Score3',
+                                   'Mean')).sort_values(by='Mean',
+                                                        ascending = False)
+    return scores
 
 
-def Kbest_scores(features, labels,features_scaled, y_train, features_list):
-        
+def kbest_scores(features, labels, features_list):
+    """
+    Scores of all features, used for support the parameter search task.
+    For each feature return 3 kbest score based on:
+        1) Scaled (MinMaxScaler) features
+        2) The default function f_classif
+        3) Use chi2 function on scaled data
     
-
-    selector = SelectKBest(chi2, k='all').fit(features_scaled, y_train)
-    #selector = SelectKBest(k='all').fit(features_scaled, y_train)
-    # ANOVA F-value between label/feature for classification tasks
-    k_best = SelectKBest(f_regression,k='all').fit(features, labels)
-    k_best_scaled = SelectKBest(k='all').fit(features_scaled, y_train)
+    Args:
+        features: Array-like. Data to fit.
+        labels:  Array-like. Target variable.
+        features_list: Array-like. Features names.    
+    """
     
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    features_scaled = scaler.fit_transform(features)
+    
+    selector = SelectKBest(chi2, k='all').fit(features_scaled, labels)
+    k_best = SelectKBest(f_classif,k='all').fit(features, labels)    
     
     # Format values
-    kbest_pd = pd.DataFrame(zip(features_list[1:], 
-                                k_best_scaled.scores_, # scaled
+    kbest_pd = pd.DataFrame(zip(features_list[1:],
                                 k_best.scores_, # K best score                            
                                 selector.scores_), # chi2
-                            columns = ['feature','anova_scaled','anova', 'chi2'])
-    print "SelectKBest"
-    print kbest_pd.sort_values(by='anova_scaled',ascending = False)
+                            columns = ['feature','anova', 'chi2'])
+    print "SelectKBest: "
+    print kbest_pd.sort_values(by='anova',ascending = False)
+    

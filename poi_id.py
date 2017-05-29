@@ -11,17 +11,21 @@ from time import time
 import pandas as pd
 import pylab as pl
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, GradientBoostingClassifier, ExtraTreesClassifier
-from sklearn.metrics import precision_score, recall_score
+from sklearn.metrics import precision_score, recall_score, precision_recall_fscore_support, accuracy_score
 from sklearn.neighbors import KNeighborsClassifier, NearestCentroid
 from sklearn.tree import DecisionTreeClassifier, ExtraTreeClassifier
 from sklearn.naive_bayes import GaussianNB
 #from sklearn.svm import LinearSVC, SVC
 from sklearn.linear_model import LogisticRegression
-from support_methods import get_f1_score, Kbest_scores
+from support_methods import get_score, kbest_scores
 from sklearn.preprocessing import  MaxAbsScaler, StandardScaler, MinMaxScaler
 from sklearn import model_selection
 import matplotlib.pyplot as plt
 from sklearn.svm import SVC
+from sklearn.feature_selection import SelectKBest
+
+from sklearn.pipeline import Pipeline
+from sklearn.decomposition import PCA
 
 from sklearn.grid_search import GridSearchCV, RandomizedSearchCV
 
@@ -68,7 +72,7 @@ financial_features_list = [
     'salary'
     #,
     #'total_payments',
-    #'total_stock_value',
+    #'total_stock_value'
 ]
 
 #features_list = [target_label] + financial_features_list + email_features_list                 
@@ -141,29 +145,14 @@ features_list = features_list + ['message_poi_ratio','message_others_ratio']
 my_dataset = data_dict
 
 ### Extract features and labels from dataset for local testing
-data = featureFormat(my_dataset, features_list, sort_keys = True)
+data = featureFormat(my_dataset, features_list, sort_keys = True, 
+                                                remove_NaN = True)
 labels, features = targetFeatureSplit(data)
 
 features_train, features_test, labels_train, labels_test = cross_validation.train_test_split(features, labels,  test_size=0.3, random_state=42)
 
-scaler = MinMaxScaler()
-X_scaled = scaler.fit_transform(features)
-X_train, X_test, y_train, y_test = model_selection.train_test_split(X_scaled, 
-                                                                labels,  
-                                                                test_size=0.3, 
-                                                                random_state=42)
 
-#get_f1_score(features_train, labels_train)
-
-#Kbest_scores(features_train, labels_train, X_train, y_train, features_list)
-
-
-
-#print x
-    #print "Model:", name    
-    #print PERF_FORMAT_STRING.format(accuracy, precision, recall, f1, f2, display_precision = 5)
-
-
+#kbest_scores(features_train, labels_train, features_list)
 
 ###for i in [0,1,2,3,5,6,7,9]:
 ###    models.pop(i)
@@ -189,15 +178,8 @@ plt.show()
 ###    pass
 ################################
 
-###
-
 ### Task 4: Try a varity of classifiers
-### Please name your classifier clf for easy export below.
-### Note that if you want to do PCA or other multi-stage operations,
-### you'll need to use Pipelines. For more info:
-### http://scikit-learn.org/stable/modules/pipeline.html
 
-# Provided to give you a starting point. Try a variety of classifiers.
 PERF_FORMAT_STRING = "\
 \tAccuracy: {:>0.{display_precision}f}\tPrecision: {:>0.{display_precision}f}\t\
 Recall: {:>0.{display_precision}f}\tF1: {:>0.{display_precision}f}\tF2: {:>0.{display_precision}f}"
@@ -212,7 +194,6 @@ models.append(('RandomForest', RandomForestClassifier(n_estimators=100, random_s
 models.append(('GradientBoostingClassifier', GradientBoostingClassifier(n_estimators=100, learning_rate=1.0)))
 models.append(('AdaBoost', AdaBoostClassifier(n_estimators=100)))
 models.append(('ExtraTreesClassifier', ExtraTreesClassifier(n_estimators=100, random_state=0)))
-
 # linear_model
 models.append(('LogisticRegression', LogisticRegression()))
 # neighbors
@@ -221,65 +202,145 @@ models.append(('NearestCentroid', NearestCentroid()))
 # SVC
 models.append(('SVM', SVC()))
 
+#print get_score(features_train, labels_train, models, 'f1')
+
+#print get_score(features_train, labels_train, models, 'precision')
 
 """
-# prepare configuration for cross validation test harness
 seed = 32
-# evaluate each model in turn
+
 results = []
-names = []
-scoring = 'accuracy'
-for name, clf in models:
-    
-    kfold = model_selection.KFold(n_splits=10)
-	 cv_results = model_selection.cross_val_score(model, features_train, labels_train, cv=kfold, scoring=scoring)
-	 results.append(cv_results)
-	 names.append(name)
-	 msg = "%s: %f (%f)" % (name, cv_results.mean(), cv_results.std())
-	 print(msg)
-    
+
+# evaluate each model - basics parameters
+for name, clf in models: 
+        
     results.append(test_classifier(clf, my_dataset, features_list))
     
-x =  pd.DataFrame(results, columns=['Model', 
-                                     'Accuracy', 
-                                     'Precision',
-                                     'Recall',
-                                     'F1',
-                                     'F2']).sort_values(by='F1',ascending = False))
-"""
-### Task 5: Tune your classifier to achieve better than .3 precision and recall 
-### using our testing script. Check the tester.py script in the final project
-### folder for details on the evaluation method, especially the test_classifier
-### function. Because of the small size of the dataset, the script uses
-### stratified shuffle split cross validation. For more info: 
-### http://scikit-learn.org/stable/modules/generated/sklearn.cross_validation.StratifiedShuffleSplit.html
+x =  pd.DataFrame(results, columns=['Model','Accuracy','Precision','Recall','F1','F2']).sort_values(by='F1',ascending = False)
 
-# Example starting point. Try investigating other evaluation techniques!
-from sklearn.cross_validation import train_test_split
+### Task 5: Tune your classifier to achieve better than .3 precision and recall 
+### using our testing script. 
+
 # models.append(('AdaBoost', AdaBoostClassifier(n_estimators=100)))
 # models.append(('NearestCentroid', NearestCentroid()))
 
-param_test1 = {'n_estimators':range(20,81,10)}
-grid = GridSearchCV(estimator = GradientBoostingClassifier(learning_rate=0.1, 
-                                                               min_samples_split=500,
-                                                               min_samples_leaf=50,
-                                                               max_depth=8,
-                                                               max_features='sqrt',
-                                                               subsample=0.8,
-                                                               random_state=10), 
-                    param_grid = param_test1, 
-                    scoring='roc_auc',n_jobs=4,iid=False, cv=5)
+
+scv = StratifiedShuffleSplit(labels_train, 1000, random_state = 42)
+
+Pipeline(steps=[('minmaxer', MinMaxScaler(copy=True, feature_range=(0, 1))), ('selection', SelectKBest(k=10, score_func=<function f_classif at 0x000000000C5EB9E8>)), ('classifier', AdaBoostClassifier(algorithm='SAMME.R', base_estimator=None, learning_rate=1,
+          n_estimators=200, random_state=None))])
+        Accuracy: 0.85560       Precision: 0.44459      Recall: 0.33300 F1: 0.38079     F2: 0.35060
+        Total predictions: 15000        True positives:  666    False positives:  832   False negatives: 1334   True negatives: 12168
+
+pipeline = Pipeline(steps=[('minmaxer', MinMaxScaler()),
+                           ('selection', SelectKBest()),
+                           ('classifier', AdaBoostClassifier(algorithm = 'SAMME.R',
+                                                                 random_state = 42))
+                               ])
+
+params = {'selection__k': [10, 'all'],
+          'classifier__n_estimators':[150,200],
+          'classifier__learning_rate' :[0.1, 1]
+               }
+grid = GridSearchCV(pipeline, 
+                    param_grid = params, 
+                    scoring='recall', cv=scv)
+
 grid.fit(features_train, labels_train)
-grid.best_estimator_
-# predicted = grid.predict(features_test)
-# x = classification_report(labels_test, predicted)
-#test_classifier(grid.best_estimator_, my_dataset, features_list)    
-#features_train, features_test, labels_train, labels_test = \
-#    train_test_split(features, labels, test_size=0.3, random_state=42)
+
+print grid.best_estimator_
+
+#test_classifier(clf, my_dataset, features_list)
+
+
+Pipeline(steps=[('minmaxer', MinMaxScaler(copy=True, feature_range=(0, 1))), ('selection', SelectKBest(k=10, score_func=<function f_classif at 0x000000000C5EB9E8>)), ('classifier', NearestCentroid(metric='cityblock', shrink_threshold=None))])
+        Accuracy: 0.83567       Precision: 0.36490      Recall: 0.31400 F1: 0.33754     F2: 0.32301
+        Total predictions: 15000        True positives:  628    False positives: 1093   False negatives: 1372   True negatives: 11907
+
+pipeline = Pipeline(steps=[('minmaxer', MaxAbsScaler()),
+                           ('selection', SelectKBest()),
+                           ('classifier', NearestCentroid())
+                          ])
+
+params = {'selection__k': [ 6, 10, 14, 'all'],
+          'classifier__metric': ['cityblock', 'cosine', 'euclidean', 'l1', 'l2', 'manhattan','correlation', 'minkowski'],
+          'classifier__shrink_threshold'  : [None, .2]
+         }
+
+grid = GridSearchCV(pipeline, 
+                    param_grid = params, 
+                    scoring='accuracy', cv=scv)
+grid.fit(features_train, labels_train)
+"""
+scv = StratifiedShuffleSplit(labels_train, 1000, random_state = 42)
+pipeline = Pipeline(steps=[('minmaxer', MaxAbsScaler()),
+                           ('selection', SelectKBest()),
+                           ('classifier', DecisionTreeClassifier(random_state = 42))
+                          ])
+
+params = {'selection__k': [10, 'all'],
+          "classifier__criterion": ["gini", "entropy"],
+          'classifier__min_samples_split': [2,4],
+          'classifier__max_features': [1,3]
+         }
+
+grid = GridSearchCV(pipeline, 
+                    param_grid = params, 
+                    scoring='accuracy', cv=scv)
+
+grid.fit(features_train, labels_train)
+
+pred = grid.predict(features_test)
+
+print 'Accuracy:', accuracy_score(labels_test, pred)
+#print 'F1 score:', f1_score(y_test, prediction)
+print 'Recall:', recall_score(labels_test, pred)
+print 'Precision:', precision_score(labels_test, pred)
+#test_classifier(grid.best_estimator_, my_dataset, features_list)
+"""
+pipeline = Pipeline(steps=[('minmaxer', MinMaxScaler()),
+                           ('selection', SelectKBest()),
+                           ('classifier', LogisticRegression())
+                          ])
+
+params = {'selection__k': [10, 14, 'all'],
+          #'classifier__C': [0.05, 0.5, 1, 10, 100, 500, 1000],
+          #'classifier__solver': ['liblinear'],
+          'classifier__penalty': ['l1', 'l2'], 
+          'classifier__C': [0.1, 0.5, 1, 10, 100],
+          'classifier__class_weight': [None, 'balanced']
+         }
+
+grid = GridSearchCV(pipeline, 
+                    param_grid = params, 
+                    scoring='recall', cv=scv)
+
+grid.fit(features_train, labels_train)
+
+pred = grid.predict(features_test)
+
+precision, recall, fscore, support = precision_recall_fscore_support(labels_test, pred)
+
+#print('precision: {}'.format(precision))
+#print('recall: {}'.format(recall))
+#print('fscore: {}'.format(fscore))
+#print('support: {}'.format(support))
+
+print 'Accuracy:', accuracy_score(labels_test, pred)
+#print 'F1 score:', f1_score(y_test, prediction)
+print 'Recall:', recall_score(labels_test, pred)
+print 'Precision:', precision_score(labels_test, pred)
+#test_classifier(grid.best_estimator_, my_dataset, features_list)
+
+# clf = search.best_estimator_
+"""
+
 
 ### Task 6: Dump your classifier, dataset, and features_list so anyone can
-### check your results. You do not need to change anything below, but make sure
-### that the version of poi_id.py that you submit can be run on its own and
-### generates the necessary .pkl files for validating your results.
+### check your results. 
+
 
 #dump_classifier_and_data(clf, my_dataset, features_list)
+
+
+#http://www.ritchieng.com/machine-learning-project-student-intervention/
