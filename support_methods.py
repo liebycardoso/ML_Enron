@@ -8,9 +8,11 @@ import pandas as pd
 from sklearn.feature_selection import chi2, f_classif , SelectKBest
 from sklearn import model_selection
 from sklearn.cross_validation import cross_val_score
+#from sklearn.metrics import precision_recall_fscore_support, precision_score, recall_score, accuracy_score
 from sklearn.preprocessing import  MaxAbsScaler, StandardScaler, MinMaxScaler
+from tester import  test_classifier
 
-def get_score(features, labels, models, name_score):
+def get_score(dataset, feature_list, models):
     """
     Estimate the score value by cross-validation for each model.
     Show the result as a DataFrame compose for: Model name, scores, Scores mean 
@@ -22,7 +24,21 @@ def get_score(features, labels, models, name_score):
         name_score: string. Scoring parameter. Example: F1, Accuracy, 
                                                         Recall and precision.    
     """
+    accuracy_model = []
+    for name, clf in models:  
+        
+        score = test_classifier(clf, dataset, feature_list)
+            
+        accuracy_model.append([name,score[2], score[3], score[1]])
+      
+    scores = pd.DataFrame(accuracy_model,
+                          columns=('Model', 
+                                   'Precision', 
+                                   'Recall',
+                                   'Accuracy')).sort_values(by='Accuracy',
+                                                        ascending = False)
     
+    """
     accuracy_model = []
     for name, clf in models:    
         score = cross_val_score(clf, features, labels, scoring=name_score)
@@ -35,6 +51,7 @@ def get_score(features, labels, models, name_score):
                                    'Score3',
                                    'Mean')).sort_values(by='Mean',
                                                         ascending = False)
+    """
     return scores
 
 

@@ -84,8 +84,8 @@ with open("final_project_dataset.pkl", "r") as data_file:
     data_dict = pickle.load(data_file)
 
 ### Task 2: Remove outliers
-
 outliers = ["TOTAL", "THE TRAVEL AGENCY IN THE PARK", "LOCKHART EUGENE E", "CHAN RONNIE"]
+#outliers = ["TOTAL", "THE TRAVEL AGENCY IN THE PARK"]
 for outlier in outliers :
     data_dict.pop(outlier, 0)
 
@@ -200,11 +200,12 @@ models.append(('LogisticRegression', LogisticRegression()))
 models.append(('KNeighbors', KNeighborsClassifier(n_neighbors=4)))
 models.append(('NearestCentroid', NearestCentroid()))
 # SVC
-models.append(('SVM', SVC()))
+#models.append(('SVM', SVC()))
 
-#print get_score(features_train, labels_train, models, 'f1')
+print get_score(my_dataset, features_list, models)
 
 #print get_score(features_train, labels_train, models, 'precision')
+scv = StratifiedShuffleSplit(labels_train, 10, random_state = 42)
 
 """
 seed = 32
@@ -212,11 +213,6 @@ seed = 32
 results = []
 
 # evaluate each model - basics parameters
-for name, clf in models: 
-        
-    results.append(test_classifier(clf, my_dataset, features_list))
-    
-x =  pd.DataFrame(results, columns=['Model','Accuracy','Precision','Recall','F1','F2']).sort_values(by='F1',ascending = False)
 
 ### Task 5: Tune your classifier to achieve better than .3 precision and recall 
 ### using our testing script. 
@@ -232,26 +228,54 @@ Pipeline(steps=[('minmaxer', MinMaxScaler(copy=True, feature_range=(0, 1))), ('s
         Accuracy: 0.85560       Precision: 0.44459      Recall: 0.33300 F1: 0.38079     F2: 0.35060
         Total predictions: 15000        True positives:  666    False positives:  832   False negatives: 1334   True negatives: 12168
 
-pipeline = Pipeline(steps=[('minmaxer', MinMaxScaler()),
-                           ('selection', SelectKBest()),
-                           ('classifier', AdaBoostClassifier(algorithm = 'SAMME.R',
-                                                                 random_state = 42))
-                               ])
 
+
+pipeline = Pipeline(steps=[('minmaxer', MinMaxScaler(feature_range=(0, 1))),
+                           ('selection', SelectKBest()),
+                           ('classifier', AdaBoostClassifier())
+                               ])
 params = {'selection__k': [10, 'all'],
           'classifier__n_estimators':[150,200],
-          'classifier__learning_rate' :[0.1, 1]
+          'classifier__learning_rate' :[0.1, 1],
+          'classifier__algorithm' : ['SAMME.R', 'SAMME'] 
                }
+# set up gridsearch
+grid = GridSearchCV(pipeline, param_grid = params,
+                          scoring = 'f1', cv =scv)
+grid.fit(features, labels)
+
+clf = grid.best_estimator_
+
+test_classifier(clf, my_dataset, features_list)
+
+KNeighborsClassifier(algorithm='auto', leaf_size=30, metric='minkowski', 
+                     metric_params=None, n_neighbors=5, p=2, weights='distance')
+
+#### RUIM
+pipeline = Pipeline(steps=[('minmaxer',MinMaxScaler(feature_range=(0, 1))),
+                           ('selection', SelectKBest()),
+                           ('pca', PCA(n_components=.95, random_state=42)),
+                           ('classifier', KNeighborsClassifier())
+                          ])
+
+params = {'selection__k': [ 10,'all'],
+          'classifier__algorithm' : ['auto', 'ball_tree', 'kd_tree', 'brute'],
+          'classifier__metric': ['minkowski'],
+          'classifier__metric_params'  : [None],
+          'classifier__n_neighbors'  : [4,5,6,7],
+          'classifier__p' : [1,2],
+          'classifier__weights'  : ['distance', 'uniform']
+         }
+
 grid = GridSearchCV(pipeline, 
                     param_grid = params, 
-                    scoring='recall', cv=scv)
+                    scoring='accuracy', cv=scv)
 
 grid.fit(features_train, labels_train)
 
-print grid.best_estimator_
+clf = grid.best_estimator_
 
-#test_classifier(clf, my_dataset, features_list)
-
+test_classifier(clf, my_dataset, features_list)
 
 Pipeline(steps=[('minmaxer', MinMaxScaler(copy=True, feature_range=(0, 1))), ('selection', SelectKBest(k=10, score_func=<function f_classif at 0x000000000C5EB9E8>)), ('classifier', NearestCentroid(metric='cityblock', shrink_threshold=None))])
         Accuracy: 0.83567       Precision: 0.36490      Recall: 0.31400 F1: 0.33754     F2: 0.32301
@@ -271,16 +295,16 @@ grid = GridSearchCV(pipeline,
                     param_grid = params, 
                     scoring='accuracy', cv=scv)
 grid.fit(features_train, labels_train)
-"""
+
 scv = StratifiedShuffleSplit(labels_train, 1000, random_state = 42)
-pipeline = Pipeline(steps=[('minmaxer', MaxAbsScaler()),
+pipeline = Pipeline(steps=[('minmaxer', MinMaxScaler(feature_range=(0, 1))),
                            ('selection', SelectKBest()),
-                           ('classifier', DecisionTreeClassifier(random_state = 42))
+                           ('classifier', DecisionTreeClassifier(random_state = 0))
                           ])
 
 params = {'selection__k': [10, 'all'],
           "classifier__criterion": ["gini", "entropy"],
-          'classifier__min_samples_split': [2,4],
+          #'classifier__min_samples_split': [2,4],
           'classifier__max_features': [1,3]
          }
 
@@ -297,7 +321,7 @@ print 'Accuracy:', accuracy_score(labels_test, pred)
 print 'Recall:', recall_score(labels_test, pred)
 print 'Precision:', precision_score(labels_test, pred)
 #test_classifier(grid.best_estimator_, my_dataset, features_list)
-"""
+
 pipeline = Pipeline(steps=[('minmaxer', MinMaxScaler()),
                            ('selection', SelectKBest()),
                            ('classifier', LogisticRegression())
@@ -325,6 +349,15 @@ precision, recall, fscore, support = precision_recall_fscore_support(labels_test
 #print('recall: {}'.format(recall))
 #print('fscore: {}'.format(fscore))
 #print('support: {}'.format(support))
+clf = AdaBoostClassifier(algorithm='SAMME.R', base_estimator=None, learning_rate=1,
+                   n_estimators=200, random_state=None)
+
+clf.fit(features_train, labels_train)
+
+pred = clf.predict(features_test)
+
+test_classifier(clf, my_dataset, features_list)
+
 
 print 'Accuracy:', accuracy_score(labels_test, pred)
 #print 'F1 score:', f1_score(y_test, prediction)
@@ -333,7 +366,7 @@ print 'Precision:', precision_score(labels_test, pred)
 #test_classifier(grid.best_estimator_, my_dataset, features_list)
 
 # clf = search.best_estimator_
-"""
+
 
 
 ### Task 6: Dump your classifier, dataset, and features_list so anyone can
@@ -344,3 +377,5 @@ print 'Precision:', precision_score(labels_test, pred)
 
 
 #http://www.ritchieng.com/machine-learning-project-student-intervention/
+#https://github.com/baumanab/udacity_intro_machinelearning_project/blob/master/final_project/my_poi_id.py
+"""
