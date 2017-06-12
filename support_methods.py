@@ -5,6 +5,7 @@ Created on Sat May 20 21:48:23 2017
 @author: lieby
 """
 import pandas as pd
+from time import time
 from sklearn.feature_selection import chi2, f_classif , SelectKBest
 from sklearn import model_selection
 from sklearn.cross_validation import cross_val_score
@@ -24,12 +25,17 @@ def get_score(dataset, feature_list, models):
         name_score: string. Scoring parameter. Example: F1, Accuracy, 
                                                         Recall and precision.    
     """
+    
     accuracy_model = []
     for name, clf in models:  
+        tm = time()
+        print "Start testing classifier:", name
         
         score = test_classifier(clf, dataset, feature_list)
             
         accuracy_model.append([name,score[2], score[3], score[1]])
+        print "Successfully completed classifier test."
+        print "Processing time: {0}".format(round(time()-tm, 3))
       
     scores = pd.DataFrame(accuracy_model,
                           columns=('Model', 
