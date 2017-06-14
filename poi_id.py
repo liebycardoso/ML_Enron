@@ -53,7 +53,9 @@ with open("final_project_dataset.pkl", "r") as data_file:
     data_dict = pickle.load(data_file)
 
 ### Task 2: Remove outliers
-# To see how I've decided which records to create and clean, check: 
+### To see how I've decided which records to create and clean, check: 
+### https://github.com/liebycardoso/ML_Enron/blob/master/Enron_Data_Analysis.html
+
 outliers = ["TOTAL", "THE TRAVEL AGENCY IN THE PARK", "LOCKHART EUGENE E", "CHAN RONNIE"]
 
 for outlier in outliers :
@@ -165,6 +167,7 @@ print get_score(my_dataset, features_list, models)
 ### using our testing script. 
 
 ### To see how I've decide for this classifier, check: 
+### https://github.com/liebycardoso/ML_Enron/blob/master/Enron_Model_Selection.html
 
 #  Set up several steps to be cross-validated together
 pipeline = Pipeline(steps=[('minmaxer', MinMaxScaler(feature_range=(0, 1))),
