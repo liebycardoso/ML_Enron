@@ -13,7 +13,7 @@ from sklearn.cross_validation import cross_val_score
 from sklearn.preprocessing import  MaxAbsScaler, StandardScaler, MinMaxScaler
 from tester import  test_classifier
 
-def get_score(dataset, feature_list, models):
+def get_model_default_performance(dataset, feature_list, models):
     """
     Estimate the score value by cross-validation for each model.
     Show the result as a DataFrame compose for: Model name, scores, Scores mean 
@@ -44,20 +44,7 @@ def get_score(dataset, feature_list, models):
                                    'Accuracy')).sort_values(by='Accuracy',
                                                         ascending = False)
     
-    """
-    accuracy_model = []
-    for name, clf in models:    
-        score = cross_val_score(clf, features, labels, scoring=name_score)
-        accuracy_model.append([name,score[0],score[1],score[2],score.mean()])
-      
-    scores = pd.DataFrame(accuracy_model,
-                          columns=('Model', 
-                                   'Score1', 
-                                   'Score2',
-                                   'Score3',
-                                   'Mean')).sort_values(by='Mean',
-                                                        ascending = False)
-    """
+    
     return scores
 
 

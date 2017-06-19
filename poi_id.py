@@ -23,7 +23,7 @@ from sklearn.grid_search import GridSearchCV
 # Support
 from feature_format import featureFormat, targetFeatureSplit
 from tester import dump_classifier_and_data, test_classifier
-from support_methods import get_score, kbest_scores
+from support_methods import get_model_default_performance, kbest_scores
 
 
 ### Task 1: Select what features you'll use.
@@ -161,7 +161,8 @@ models.append(('NearestCentroid',
                NearestCentroid()))
 
 # Evaluate each model - default parameters
-print get_score(my_dataset, features_list, models)
+
+print get_model_default_performance(my_dataset, features_list, models)
 
 ### Task 5: Tune your classifier to achieve better than .3 precision and recall 
 ### using our testing script. 
@@ -172,7 +173,7 @@ print get_score(my_dataset, features_list, models)
 #  Set up several steps to be cross-validated together
 pipeline = Pipeline(steps=[('minmaxer', MinMaxScaler(feature_range=(0, 1))),
                            ('classifier', AdaBoostClassifier(random_state=42))
-                               ])
+                          ])
 
 # Grid of parameter values
 params = {          
@@ -195,7 +196,7 @@ params = {
          }
 
 #  Search for best parameter values for an estimator
-grid = GridSearchCV(pipeline, param_grid = params,scoring = 'recall', cv=10)
+grid = GridSearchCV(pipeline, param_grid = params,scoring = 'f1', cv=10)
 grid.fit(features_train, labels_train)
 
 clf = grid.best_estimator_
